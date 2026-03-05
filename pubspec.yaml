@@ -1,0 +1,50 @@
+name: face_attendance
+description: Face Recognition Attendance App with Liveness Detection
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Camera
+  camera: ^0.10.5+9
+
+  # Google ML Kit Face Detection
+  google_mlkit_face_detection: ^0.11.0
+
+  # HTTP
+  http: ^1.2.0
+
+  # Image processing (for face ROI crop)
+  image: ^4.2.0
+
+  # Crypto (device hash)
+  crypto: ^3.0.3
+
+  # Permissions
+  permission_handler: ^11.3.0
+
+  # Location (GPS lat/lng)
+  geolocator: ^11.0.0
+
+  # Device info (device_hash)
+  device_info_plus: ^10.1.0
+
+  # Torch (flashlight)
+  flutter_secure_storage: ^9.2.4
+
+  # UI
+  cupertino_icons: ^1.0.6
+  flutter_animate: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
