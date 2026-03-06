@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/secure_storage_service.dart';
+import 'attendance_screen.dart';
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 //
@@ -156,7 +158,15 @@ class HomeScreen extends StatelessWidget {
               width: double.infinity,
               height: 54,
               child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () async {
+                  await SecureStorageService.clearAll();
+                  if (!context.mounted) return;
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+                    (route) => false,
+                  );
+                },
                 icon: const Icon(Icons.logout),
                 label: const Text(
                   'Log Out',

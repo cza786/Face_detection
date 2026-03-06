@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'attendance_screen.dart';
+import 'home_screen.dart';
+import '../services/secure_storage_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,20 +25,32 @@ class _SplashScreenState extends State<SplashScreen>
         vsync: this, duration: const Duration(milliseconds: 800));
     _scaleController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 900));
-    _fadeAnim =
-        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _scaleAnim =
         CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut);
 
     _fadeController.forward();
     _scaleController.forward();
 
-    Timer(const Duration(seconds: 3), () {
+    Timer(const Duration(seconds: 3), () async {
+      final employeeData = await SecureStorageService.getEmployeeData();
+
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AttendanceScreen()),
-        );
+        if (employeeData != null && employeeData.isNotEmpty) {
+          // Previously logged in -> go straight to home screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HomeScreen(employeeData: employeeData),
+            ),
+          );
+        } else {
+          // No active session -> go to login/attendance scanner
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+          );
+        }
       }
     });
   }

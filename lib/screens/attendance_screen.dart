@@ -10,6 +10,7 @@ import '../services/auth_service.dart';
 import '../services/location_device_service.dart';
 import '../widgets/face_overlay_painter.dart';
 import '../widgets/scan_status_widget.dart';
+import '../services/secure_storage_service.dart';
 import 'home_screen.dart';
 
 enum ScanState {
@@ -424,6 +425,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           debugPrint('[AttendanceScreen] ✅ Session Token: ${result.token}');
         }
         _setUiState(ScanState.success, 'Identity Verified ✓', sub: 'Welcome!');
+
+        // Save the authenticated session to device persistent storage
+        await SecureStorageService.saveEmployeeData(result.employeeData ?? {});
+
         await Future.delayed(const Duration(milliseconds: 900));
         if (mounted) {
           await _releaseCamera();
