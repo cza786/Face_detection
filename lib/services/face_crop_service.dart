@@ -42,8 +42,8 @@ class FaceCropResult {
 
 class FaceCropService {
   // ── Tunable constants ──────────────────────────────────────────────────────
-  static const double _padX = 0.20; // 20 % horizontal padding
-  static const double _padY = 0.25; // 25 % vertical padding
+  static const double _padX = 0.05; // 5 % horizontal padding (tight crop)
+  static const double _padY = 0.05; // 5 % vertical padding (tight crop)
   static const int _maxPx = 320; // longest side after resize
   static const int _jpegQ = 82; // JPEG quality
   static const int _minCropPx = 60; // min crop size (scaled) before resize

@@ -5,18 +5,25 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+// ─── LocationDeviceService ────────────────────────────────────────────────────
+//
+// Provides:
+//   • getCurrentLocation()  → lat/lng as LocationData
+//   • getDeviceId()         → raw platform device identifier string
+//   • getDeviceHash()       → MD5 hex of device ID (32 chars, lowercase)
+//   • printDeviceIdAndLocation() → debug helper
+//
+// The device hash uses MD5 (not SHA-256) to match the 32-character hex format
+// required by the backend API.
+// ─────────────────────────────────────────────────────────────────────────────
+
 class LocationDeviceService {
+  // ──────────────────────────────────────────────────────────────────────────
+  // Debug helper — prints device ID and GPS coordinates to the console.
+  // ──────────────────────────────────────────────────────────────────────────
   static Future<void> printDeviceIdAndLocation() async {
     try {
-      final deviceInfo = DeviceInfoPlugin();
-      String deviceId = '';
-      if (Platform.isAndroid) {
-        final info = await deviceInfo.androidInfo;
-        deviceId = info.id;
-      } else if (Platform.isIOS) {
-        final info = await deviceInfo.iosInfo;
-        deviceId = info.identifierForVendor ?? '';
-      }
+      final deviceId = await getDeviceId();
       debugPrint('Device ID: $deviceId');
 
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -48,8 +55,59 @@ class LocationDeviceService {
     }
   }
 
-  /// Requests location permission and fetches current GPS coordinates.
-  /// Returns [LocationData] with lat/lng, or throws a descriptive error.
+  // ──────────────────────────────────────────────────────────────────────────
+  // Returns the raw device identifier string.
+  //   Android → android.id  (SSAID, stable per device + user)
+  //   iOS     → identifierForVendor
+  // ──────────────────────────────────────────────────────────────────────────
+  static Future<String> getDeviceId() async {
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        final info = await deviceInfo.androidInfo;
+        return info.id; // Android ID (SSAID)
+      } else if (Platform.isIOS) {
+        final info = await deviceInfo.iosInfo;
+        return info.identifierForVendor ?? 'unknown_ios_device';
+      }
+      return 'unknown_platform';
+    } catch (e) {
+      debugPrint('[LocationDeviceService] getDeviceId error: $e');
+      return 'fallback_device';
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Returns a 32-character lowercase MD5 hex hash of the device ID.
+  //
+  // The backend expects exactly this format:
+  //   e.g.  "f72dd67768dbf566a5deee0eb5f9b16d"
+  // ──────────────────────────────────────────────────────────────────────────
+  static Future<String> getDeviceHash() async {
+    try {
+      final deviceId = await getDeviceId();
+      debugPrint('[LocationDeviceService] Raw Device ID: $deviceId');
+
+      // MD5 produces a 128-bit digest → 32 lowercase hex characters
+      final digest = md5.convert(utf8.encode(deviceId));
+      final hash = digest.toString(); // always 32 chars, lowercase hex
+
+      debugPrint('[LocationDeviceService] Device Hash (MD5): $hash');
+      assert(hash.length == 32, 'MD5 hash must be exactly 32 characters');
+
+      return hash;
+    } catch (e) {
+      debugPrint('[LocationDeviceService] getDeviceHash error: $e');
+      // Fallback: MD5 of the platform name
+      final fallback = md5.convert(utf8.encode(Platform.operatingSystem));
+      return fallback.toString();
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Requests location permission and fetches current GPS coordinates.
+  // Throws a [LocationException] with a descriptive message on failure.
+  // ──────────────────────────────────────────────────────────────────────────
   static Future<LocationData> getCurrentLocation() async {
     // Check if location services are enabled on the device
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -78,50 +136,13 @@ class LocationDeviceService {
       timeLimit: const Duration(seconds: 10),
     );
 
+    debugPrint('[LocationDeviceService] Latitude:  ${position.latitude}');
+    debugPrint('[LocationDeviceService] Longitude: ${position.longitude}');
+
     return LocationData(
       latitude: position.latitude,
       longitude: position.longitude,
     );
-  }
-
-  /// Generates a stable device hash from hardware identifiers.
-  /// Uses SHA-256 of combined device info fields.
-  static Future<String> getDeviceHash() async {
-    try {
-      final deviceInfo = DeviceInfoPlugin();
-      String rawId = '';
-
-      if (Platform.isAndroid) {
-        final info = await deviceInfo.androidInfo;
-        // Combine stable hardware identifiers
-        rawId = [
-          info.id,               // Android ID (unique per device+user)
-          info.brand,
-          info.model,
-          info.hardware,
-          info.fingerprint,
-        ].join('|');
-      } else if (Platform.isIOS) {
-        final info = await deviceInfo.iosInfo;
-        // identifierForVendor is stable per app install on same device
-        rawId = [
-          info.identifierForVendor ?? '',
-          info.model,
-          info.name,
-          info.systemVersion,
-        ].join('|');
-      }
-
-      if (rawId.isEmpty) rawId = 'unknown_device';
-
-      // SHA-256 hash of the combined string
-      final digest = sha256.convert(utf8.encode(rawId));
-      return digest.toString(); // 64-char hex string
-    } catch (e) {
-      // Fallback — return a hash of the platform string
-      final fallback = sha256.convert(utf8.encode(Platform.operatingSystem));
-      return fallback.toString();
-    }
   }
 }
 

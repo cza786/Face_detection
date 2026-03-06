@@ -364,20 +364,46 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       debugPrint('[AttendanceScreen] Crop succeeded → '
           '${(cropResult.croppedBytes!.length / 1024).toStringAsFixed(1)} KB');
 
-      // ── Get location ──────────────────────────────────────────────────────
+      // ── Gather location ───────────────────────────────────────────────────
       _setUiState(ScanState.verifying, 'Getting location…',
-          sub: 'Preparing verification data');
+          sub: 'Please ensure GPS is enabled');
 
       LocationData location;
       try {
         location = await LocationDeviceService.getCurrentLocation();
-      } on LocationException catch (e) {
-        _setUiState(ScanState.error, 'Location error', sub: e.message);
+      } on LocationException catch (le) {
+        _setUiState(ScanState.error, 'Location Error', sub: le.message);
+        return;
+      } catch (e) {
+        _setUiState(ScanState.error, 'Location Error',
+            sub: 'Could not get GPS location. Please try again.');
         return;
       }
 
-      final deviceHash =
-          _cachedDeviceHash ?? await LocationDeviceService.getDeviceHash();
+      // ── Gather device hash (use prefetched, or fetch now) ─────────────────
+      final String deviceHash;
+      if (_cachedDeviceHash != null && _cachedDeviceHash!.isNotEmpty) {
+        deviceHash = _cachedDeviceHash!;
+      } else {
+        try {
+          deviceHash = await LocationDeviceService.getDeviceHash();
+          _cachedDeviceHash = deviceHash;
+        } catch (e) {
+          _setUiState(ScanState.error, 'Device Error',
+              sub: 'Could not generate device hash.');
+          return;
+        }
+      }
+
+      // ── Debug print all payload values ────────────────────────────────────
+      debugPrint('=== Attendance Verification Payload ===');
+      debugPrint(
+          'Face Base64 length: ${cropResult.croppedBytes!.length} bytes (raw)');
+      debugPrint('Latitude: ${location.latitude}');
+      debugPrint('Longitude: ${location.longitude}');
+      debugPrint(
+          'Device Hash (MD5): $deviceHash  (${deviceHash.length} chars)');
+      debugPrint('=======================================');
 
       // ── Call API ──────────────────────────────────────────────────────────
       _setUiState(ScanState.verifying, 'Verifying identity…',
@@ -394,6 +420,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
       if (result.isAuthenticated) {
         // ── SUCCESS ──────────────────────────────────────────────────────────
+        if (result.token != null) {
+          debugPrint('[AttendanceScreen] ✅ Session Token: ${result.token}');
+        }
         _setUiState(ScanState.success, 'Identity Verified ✓', sub: 'Welcome!');
         await Future.delayed(const Duration(milliseconds: 900));
         if (mounted) {
